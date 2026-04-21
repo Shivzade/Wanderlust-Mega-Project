@@ -4,6 +4,7 @@ pipeline {
     
     environment{
         SONAR_HOME = tool "Sonar"
+        NODE_HOME  = tool "nodejs"
     }
     
     parameters {
@@ -38,23 +39,29 @@ pipeline {
             }
         }
 
-        // ✅ FIX ADDED HERE
+        
         stage("Install Dependencies"){
-            steps{
-                script{
-                    sh '''
-                        echo "Installing backend dependencies..."
-                        cd backend && npm install
-                        
-                        echo "Installing frontend dependencies..."
-                        cd ../frontend && npm install
-                        
-                        echo "Installing root dependencies..."
-                        cd .. && npm install
-                    '''
-                }
+    steps{
+        script{
+            withEnv(["PATH+NODE=${NODE_HOME}/bin"]) {
+                sh '''
+                    node -v
+                    npm -v
+
+                    echo "Installing backend dependencies..."
+                    cd backend && npm install
+                    
+                    echo "Installing frontend dependencies..."
+                    cd ../frontend && npm install
+                    
+                    echo "Installing root dependencies..."
+                    cd .. && npm install
+                '''
             }
         }
+    }
+}
+                
         
         stage("Trivy: Filesystem scan"){
             steps{
