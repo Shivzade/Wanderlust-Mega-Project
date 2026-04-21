@@ -1,6 +1,6 @@
 @Library('Shared') _
 pipeline {
-    agent {label 'Node'}
+    agent any
     
     environment{
         SONAR_HOME = tool "Sonar"
@@ -21,6 +21,7 @@ pipeline {
                 }
             }
         }
+
         stage("Workspace cleanup"){
             steps{
                 script{
@@ -36,11 +37,33 @@ pipeline {
                 }
             }
         }
+
+        // ✅ FIX ADDED HERE
+        stage("Install Dependencies"){
+            steps{
+                script{
+                    sh '''
+                        echo "Installing backend dependencies..."
+                        cd backend && npm install
+                        
+                        echo "Installing frontend dependencies..."
+                        cd ../frontend && npm install
+                        
+                        echo "Installing root dependencies..."
+                        cd .. && npm install
+                    '''
+                }
+            }
+        }
         
         stage("Trivy: Filesystem scan"){
             steps{
                 script{
+                    // Default scan
                     trivy_scan()
+                    
+                    // 🔴 OPTIONAL: Fail build on HIGH/CRITICAL
+                    // sh "trivy fs --exit-code 1 --severity HIGH,CRITICAL ."
                 }
             }
         }
@@ -96,13 +119,13 @@ pipeline {
         stage("Docker: Build Images"){
             steps{
                 script{
-                        dir('backend'){
-                            docker_build("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","shivzade")
-                        }
-                    
-                        dir('frontend'){
-                            docker_build("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","shivzade")
-                        }
+                    dir('backend'){
+                        docker_build("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","shivzade")
+                    }
+                
+                    dir('frontend'){
+                        docker_build("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","shivzade")
+                    }
                 }
             }
         }
@@ -116,6 +139,7 @@ pipeline {
             }
         }
     }
+
     post{
         success{
             archiveArtifacts artifacts: '*.xml', followSymlinks: false
